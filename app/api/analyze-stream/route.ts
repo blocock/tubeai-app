@@ -116,11 +116,21 @@ export async function POST(request: NextRequest) {
       const news = newsResult.status === 'fulfilled' ? newsResult.value : [];
       const redditPosts = redditResult.status === 'fulfilled' ? redditResult.value : [];
 
+      // Log results for debugging
+      if (redditResult.status === 'rejected') {
+        console.error('Reddit fetch failed:', redditResult.reason);
+      } else {
+        console.log(`Reddit posts fetched: ${redditPosts.length} posts`);
+      }
+
       if (news.length > 0) {
         send({ type: 'news', data: news });
       }
       if (redditPosts.length > 0) {
         send({ type: 'reddit', data: redditPosts });
+      } else {
+        // Send empty array to indicate Reddit was attempted but returned no results
+        console.warn('No Reddit posts found or Reddit API failed');
       }
 
       // Step 4: Generate video ideas
