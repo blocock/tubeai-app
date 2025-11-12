@@ -43,6 +43,11 @@ A Next.js application that analyzes YouTube channels and generates video ideas u
    YOUTUBE_API_KEY=your_youtube_api_key_here
    OPENAI_API_KEY=your_openai_api_key_here
    NEWS_API_KEY=your_news_api_key_here
+   
+   # Vercel KV (optional but recommended for production)
+   # These are automatically set when using Vercel KV
+   KV_REST_API_URL=your_kv_rest_api_url
+   KV_REST_API_TOKEN=your_kv_rest_api_token
    ```
 
    **Getting API Keys:**
@@ -101,6 +106,7 @@ A Next.js application that analyzes YouTube channels and generates video ideas u
 - **Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
+- **Caching**: Vercel KV (Redis-based)
 - **APIs**:
   - YouTube Data API v3
   - OpenAI API (GPT-4o-mini)
@@ -147,6 +153,10 @@ tubeai-app/
      - `YOUTUBE_API_KEY`
      - `OPENAI_API_KEY`
      - `NEWS_API_KEY` (optional)
+   - **Set up Vercel KV** (recommended):
+     - Go to your project settings → Storage
+     - Create a new KV database
+     - Environment variables (`KV_REST_API_URL` and `KV_REST_API_TOKEN`) will be automatically added
    - Deploy!
 
 3. **Configure GitHub Repository**
@@ -159,4 +169,8 @@ tubeai-app/
 | `YOUTUBE_API_KEY` | Yes | YouTube Data API v3 key |
 | `OPENAI_API_KEY` | Yes | OpenAI API key for AI analysis |
 | `NEWS_API_KEY` | No | NewsAPI key (optional, news fetching will be skipped if not provided) |
+| `KV_REST_API_URL` | No | Vercel KV REST API URL (auto-set in Vercel, optional for local dev) |
+| `KV_REST_API_TOKEN` | No | Vercel KV REST API token (auto-set in Vercel, optional for local dev) |
+
+**Note:** If Vercel KV is not configured, the app will work without caching (just won't cache results). For production, it's recommended to set up Vercel KV for better performance and persistent caching across serverless function instances.
 

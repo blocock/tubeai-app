@@ -13,7 +13,7 @@ export async function analyzeTopics(videos: YouTubeVideo[]): Promise<{ topics: s
   const cacheKey = `topics:${videoIds}`;
   
   // Check cache
-  const cached = getCached<{ topics: string[], summary: string }>(cacheKey);
+  const cached = await getCached<{ topics: string[], summary: string }>(cacheKey);
   if (cached) {
     return cached;
   }
@@ -60,8 +60,7 @@ Respond in JSON format:
     summary: response.summary || '',
   };
 
-  // Cache the result
-  setCached(cacheKey, result, CACHE_TTL.TOPIC_ANALYSIS);
+  setCached(cacheKey, result, CACHE_TTL.TOPIC_ANALYSIS).catch(console.error);
 
   return result;
 }

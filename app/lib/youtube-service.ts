@@ -10,7 +10,7 @@ const youtube = new youtube_v3.Youtube({
 export async function fetchChannelVideos(channelId: string): Promise<{ videos: YouTubeVideo[], channelName: string }> {
   // Check cache first
   const cacheKey = CACHE_KEYS.channelVideos(channelId);
-  const cached = getCached<{ videos: YouTubeVideo[], channelName: string }>(cacheKey);
+  const cached = await getCached<{ videos: YouTubeVideo[], channelName: string }>(cacheKey);
   if (cached) {
     return cached;
   }
@@ -62,8 +62,7 @@ export async function fetchChannelVideos(channelId: string): Promise<{ videos: Y
 
   const result = { videos, channelName };
   
-  // Cache the result
-  setCached(cacheKey, result, CACHE_TTL.CHANNEL_VIDEOS);
+  setCached(cacheKey, result, CACHE_TTL.CHANNEL_VIDEOS).catch(console.error);
 
   return result;
 }

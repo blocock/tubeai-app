@@ -1,57 +1,4 @@
-// Simple in-memory cache with TTL
-// For production, consider using Vercel KV, Redis, or similar
-
-interface CacheEntry<T> {
-  data: T;
-  expiresAt: number;
-}
-
-class SimpleCache {
-  private cache = new Map<string, CacheEntry<any>>();
-
-  set<T>(key: string, data: T, ttlSeconds: number): void {
-    const expiresAt = Date.now() + ttlSeconds * 1000;
-    this.cache.set(key, { data, expiresAt });
-  }
-
-  get<T>(key: string): T | null {
-    const entry = this.cache.get(key);
-    if (!entry) return null;
-
-    if (Date.now() > entry.expiresAt) {
-      this.cache.delete(key);
-      return null;
-    }
-
-    return entry.data as T;
-  }
-
-  delete(key: string): void {
-    this.cache.delete(key);
-  }
-
-  clear(): void {
-    this.cache.clear();
-  }
-
-  // Clean up expired entries periodically
-  cleanup(): void {
-    const now = Date.now();
-    for (const [key, entry] of this.cache.entries()) {
-      if (now > entry.expiresAt) {
-        this.cache.delete(key);
-      }
-    }
-  }
-}
-
-// Global cache instance
-const cache = new SimpleCache();
-
-// Cleanup expired entries every 5 minutes
-if (typeof setInterval !== 'undefined') {
-  setInterval(() => cache.cleanup(), 5 * 60 * 1000);
-}
+import { kv } from '@vercel/kv';
 
 // Cache keys
 export const CACHE_KEYS = {
@@ -65,19 +12,35 @@ export const CACHE_TTL = {
   TOPIC_ANALYSIS: 24 * 60 * 60, // 24 hours
 } as const;
 
-export function getCached<T>(key: string): T | null {
-  return cache.get<T>(key);
-}
-
-export function setCached<T>(key: string, data: T, ttlSeconds: number): void {
-  cache.set(key, data, ttlSeconds);
-}
-
-export function clearCache(key?: string): void {
-  if (key) {
-    cache.delete(key);
-  } else {
-    cache.clear();
+export async function getCached<T>(key: string): Promise<T | null> {
+  try {
+    const value = await kv.get<T>(key);
+    return value ?? null;
+  } catch (error) {
+    // If KV is not configured or unavailable, return null
+    console.error('Error getting from cache:', error);
+    return null;
   }
 }
 
+export async function setCached<T>(key: string, data: T, ttlSeconds: number): Promise<void> {
+  try {
+    await kv.set(key, data, { ex: ttlSeconds });
+  } catch (error) {
+    // If KV is not configured or unavailable, silently fail
+    console.error('Error setting cache:', error);
+  }
+}
+
+export async function clearCache(key?: string): Promise<void> {
+  if (!key) {
+    console.warn('clearCache() called without key - Vercel KV does not support clearing all keys');
+    return;
+  }
+
+  try {
+    await kv.del(key);
+  } catch (error) {
+    console.error('Error deleting from cache:', error);
+  }
+}
