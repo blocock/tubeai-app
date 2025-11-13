@@ -116,7 +116,7 @@ A Next.js application that analyzes YouTube channels and generates video ideas u
   - YouTube Data API v3
   - OpenAI API (GPT-4o-mini)
   - NewsAPI
-  - Reddit JSON API
+  - Reddit Official API and Open JSON API
 
 ## Project Structure
 
@@ -168,8 +168,6 @@ tubeai-app/
      - Environment variables (`KV_REST_API_URL` and `KV_REST_API_TOKEN`) will be automatically added
    - Deploy!
 
-3. **Configure GitHub Repository**
-   - Share the repository with `awh@tubeai.app` as requested
 
 ## Environment Variables
 
