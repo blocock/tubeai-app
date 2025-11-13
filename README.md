@@ -13,7 +13,7 @@ A Next.js application that analyzes YouTube channels and generates video ideas u
 - 🎬 YouTube channel analysis
 - 🤖 AI-powered topic extraction
 - 📰 Real-time news integration
-- 💬 Reddit discussion search
+- 💬 Reddit discussion search (limited to local app)
 - ✨ AI-generated video ideas with titles, thumbnails, and outlines
 
 ## Prerequisites
@@ -48,6 +48,11 @@ A Next.js application that analyzes YouTube channels and generates video ideas u
    # These are automatically set when using Vercel KV
    KV_REST_API_URL=your_kv_rest_api_url
    KV_REST_API_TOKEN=your_kv_rest_api_token
+
+   # Reddit client (required for production)
+   REDDIT_CLIENT_ID=your_client_id_here
+   REDDIT_CLIENT_SECRET=your_client_secret_here
+   REDDIT_USER_AGENT=TubeAI/1.0 by /u/yourusername
    ```
 
    **Getting API Keys:**
@@ -125,6 +130,7 @@ tubeai-app/
 │   │   ├── youtube-service.ts    # YouTube API functions (with caching)
 │   │   ├── ai-service.ts         # OpenAI functions (with caching)
 │   │   └── external-apis.ts      # News & Reddit APIs
+│   │   └── reddit-oauth.ts       # OAuth for reddit
 │   ├── utils/
 │   │   ├── youtube.ts            # YouTube URL parsing
 │   │   ├── cache.ts              # Caching utilities
@@ -153,6 +159,9 @@ tubeai-app/
      - `YOUTUBE_API_KEY`
      - `OPENAI_API_KEY`
      - `NEWS_API_KEY` (optional)
+     - `REDDIT_CLIENT_ID` (not ready)
+     - `REDDIT_CLIENT_SECRET` (not ready)
+     - `REDDIT_USER_AGENT` (not ready)
    - **Set up Vercel KV** (recommended):
      - Go to your project settings → Storage
      - Create a new KV database
@@ -171,6 +180,8 @@ tubeai-app/
 | `NEWS_API_KEY` | No | NewsAPI key (optional, news fetching will be skipped if not provided) |
 | `KV_REST_API_URL` | No | Vercel KV REST API URL (auto-set in Vercel, optional for local dev) |
 | `KV_REST_API_TOKEN` | No | Vercel KV REST API token (auto-set in Vercel, optional for local dev) |
+| `REDDIT_CLIENT_ID` | No | Reddit client ID (Required in Vercel, optional for local dev) |
+| `REDDIT_CLIENT_SECRET` | No | Reddit client secret (Required in Vercel, optional for local dev) |
+| `REDDIT_USER_AGENT` | No | Reddit user agent (Required in Vercel, optional for local dev) |
 
-**Note:** If Vercel KV is not configured, the app will work without caching (just won't cache results). For production, it's recommended to set up Vercel KV for better performance and persistent caching across serverless function instances.
-
+**Note:** Current production is not gathering Reddit discussion due to the delayed reddit developer account approval. Production is also working on other open news source and generate video idea based on it. Once reddit dev accont is done, it will be updated shortly.
