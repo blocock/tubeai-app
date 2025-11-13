@@ -1,6 +1,7 @@
 // Shared external API functions
 import axios from 'axios';
 import type { NewsArticle, RedditPost } from '@/app/types';
+import { getRedditAccessToken } from './reddit-oauth';
 
 export async function fetchRelevantNews(topics: string[]): Promise<NewsArticle[]> {
   if (topics.length === 0) return [];
@@ -37,54 +38,44 @@ export async function fetchRelevantNews(topics: string[]): Promise<NewsArticle[]
   }
 }
 
-export async function searchRedditPosts(topics: string[]): Promise<RedditPost[]> {
-  if (topics.length === 0) return [];
+/**
+ * Search Reddit using OAuth API (preferred) with fallback to public API
+ * Uses OAuth if credentials are available, otherwise falls back to public JSON API
+ */
+async function searchRedditWithOAuth(topic: string): Promise<RedditPost[]> {
+  const accessToken = await getRedditAccessToken();
+  if (!accessToken) {
+    return [];
+  }
 
-  const allPosts: RedditPost[] = [];
+  const REDDIT_USER_AGENT = process.env.REDDIT_USER_AGENT || 'TubeAI/1.0 by /u/yourusername';
+  
+  try {
+    const response = await axios.get('https://oauth.reddit.com/search', {
+      params: {
+        q: topic,
+        sort: 'relevance',
+        limit: 5,
+        t: 'week',
+        restrict_sr: 'false',
+        type: 'link',
+      },
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'User-Agent': REDDIT_USER_AGENT,
+        'Accept': 'application/json',
+      },
+      timeout: 15000,
+    });
 
-  // Search Reddit using their JSON API (no auth required for read-only)
-  for (const topic of topics.slice(0, 3)) {
-    try {
-      // Try the search endpoint with proper formatting
-      const searchUrl = `https://www.reddit.com/search.json`;
-      const response = await axios.get(searchUrl, {
-        params: {
-          q: topic,
-          sort: 'relevance',
-          limit: 5,
-          t: 'week', // Last week
-          restrict_sr: 'false', // Search all subreddits
-        },
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'application/json, text/plain, */*',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Referer': 'https://www.reddit.com/',
-          'Origin': 'https://www.reddit.com',
-        },
-        timeout: 20000, // 20 second timeout
-        validateStatus: (status) => status < 500, // Don't throw on 4xx errors
-        maxRedirects: 5,
-      });
+    if (!response.data?.data?.children) {
+      return [];
+    }
 
-      // Check if response is valid
-      if (!response.data) {
-        console.warn(`Reddit API returned no data for topic: ${topic}`);
-        continue;
-      }
-
-      // Handle both direct data and nested data structures
-      const children = response.data.data?.children || response.data.children || [];
-      
-      if (!Array.isArray(children) || children.length === 0) {
-        console.warn(`Reddit API returned no posts for topic: ${topic}`);
-        continue;
-      }
-
-      const posts = children.map((child: any) => {
-        const data = child.data || child;
-        if (!data || !data.title) return null;
+    return response.data.data.children
+      .map((child: any) => {
+        const data = child.data;
+        if (!data?.title) return null;
         
         return {
           title: data.title,
@@ -95,30 +86,87 @@ export async function searchRedditPosts(topics: string[]): Promise<RedditPost[]>
           score: data.score || 0,
           created: data.created_utc || data.created || Date.now() / 1000,
         };
-      }).filter((post): post is RedditPost => post !== null);
+      })
+      .filter((post: RedditPost | null): post is RedditPost => post !== null);
+  } catch (error: any) {
+    console.error(`Reddit OAuth search failed for "${topic}":`, error.message);
+    return [];
+  }
+}
 
+/**
+ * Search Reddit using public JSON API (fallback)
+ */
+async function searchRedditPublic(topic: string): Promise<RedditPost[]> {
+  try {
+    const response = await axios.get('https://www.reddit.com/search.json', {
+      params: {
+        q: topic,
+        sort: 'relevance',
+        limit: 5,
+        t: 'week',
+        restrict_sr: 'false',
+      },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+      },
+      timeout: 15000,
+      validateStatus: (status) => status < 500,
+    });
+
+    const children = response.data?.data?.children || [];
+    if (!Array.isArray(children) || children.length === 0) {
+      return [];
+    }
+
+    return children.map((child: any) => {
+      const data = child.data;
+      if (!data?.title) return null;
+      
+      return {
+        title: data.title,
+        url: data.permalink 
+          ? `https://reddit.com${data.permalink.startsWith('/') ? '' : '/'}${data.permalink}`
+          : `https://reddit.com/r/${data.subreddit}/comments/${data.id}`,
+        subreddit: data.subreddit || 'unknown',
+        score: data.score || 0,
+        created: data.created_utc || data.created || Date.now() / 1000,
+      };
+    }).filter((post): post is RedditPost => post !== null);
+  } catch (error: any) {
+    console.error(`Reddit public API search failed for "${topic}":`, error.message);
+    return [];
+  }
+}
+
+export async function searchRedditPosts(topics: string[]): Promise<RedditPost[]> {
+  if (topics.length === 0) return [];
+
+  const allPosts: RedditPost[] = [];
+  const hasOAuth = !!(process.env.REDDIT_CLIENT_ID && process.env.REDDIT_CLIENT_SECRET);
+
+  // Search each topic
+  for (const topic of topics.slice(0, 3)) {
+    let posts: RedditPost[] = [];
+
+    // Try OAuth first if available, otherwise use public API
+    if (hasOAuth) {
+      posts = await searchRedditWithOAuth(topic);
+      // If OAuth returns no results, try public API as fallback
+      if (posts.length === 0) {
+        console.log(`OAuth returned no results for "${topic}", trying public API...`);
+        posts = await searchRedditPublic(topic);
+      }
+    } else {
+      posts = await searchRedditPublic(topic);
+    }
+
+    if (posts.length > 0) {
       allPosts.push(...posts);
       console.log(`Found ${posts.length} Reddit posts for topic: ${topic}`);
-    } catch (error: any) {
-      // Log detailed error for debugging
-      const errorMessage = error.response 
-        ? `Status ${error.response.status}: ${error.response.statusText}`
-        : error.message || 'Unknown error';
-      console.error(`Error searching Reddit for "${topic}":`, errorMessage);
-      
-      // Log response data if available
-      if (error.response?.data) {
-        const errorData = typeof error.response.data === 'string' 
-          ? error.response.data.substring(0, 200)
-          : JSON.stringify(error.response.data).substring(0, 200);
-        console.error('Reddit API error response:', errorData);
-      }
-      
-      // Log request details for debugging
-      if (error.config) {
-        console.error('Reddit API request URL:', error.config.url);
-        console.error('Reddit API request params:', error.config.params);
-      }
+    } else {
+      console.warn(`No Reddit posts found for topic: ${topic}`);
     }
   }
 
