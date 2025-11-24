@@ -100,7 +100,7 @@ A Next.js application that analyzes YouTube channels and generates video ideas u
 4. View the results as they stream in:
    - Channel information and topics
    - Recent videos (last 10)
-   - Relevant news articles (today)
+   - Relevant news articles (last week)
    - Reddit discussions (last week)
    - 5 generated video ideas with titles, thumbnails, and outlines
 

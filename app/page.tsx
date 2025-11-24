@@ -216,7 +216,7 @@ function ResultsDisplay({ result, loading }: { result: Partial<AnalysisResult>; 
       {result.news && result.news.length > 0 && (
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6">
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
-            Relevant News Today
+            Relevant News This Week
           </h2>
           <div className="space-y-3">
             {result.news.map((article, idx) => (
