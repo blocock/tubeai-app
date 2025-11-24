@@ -7,15 +7,14 @@ export async function fetchRelevantNews(topics: string[]): Promise<NewsArticle[]
   if (topics.length === 0) return [];
 
   const query = topics.slice(0, 3).join(' OR ');
-  const today = new Date().toISOString().split('T')[0];
+  const from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   try {
     if (process.env.NEWS_API_KEY) {
       const response = await axios.get('https://newsapi.org/v2/everything', {
         params: {
           q: query,
-          from: today,
-          to: today,
+          from: from,
           sortBy: 'relevancy',
           pageSize: 10,
           apiKey: process.env.NEWS_API_KEY,
